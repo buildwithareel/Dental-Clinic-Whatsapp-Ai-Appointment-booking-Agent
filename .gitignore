@@ -1,0 +1,64 @@
+# ============================
+# Dental Clinic – AI Appointment Booking Agent
+# .gitignore
+# ============================
+
+# --- Secrets & Credentials ---
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*credentials*.json
+*secrets*.json
+n8n_credentials*.json
+
+# --- n8n local runtime data ---
+.n8n/
+n8n-data/
+*.sqlite
+*.sqlite3
+
+# --- Sanitized/backup workflow exports (keep only the main JSON) ---
+*.backup.json
+*-export.json
+*.local.json
+
+# --- Node.js (if any custom nodes/scripts are used) ---
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+yarn.lock
+
+# --- Python (if any helper scripts are used) ---
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# --- OS files ---
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# --- Editor/IDE files ---
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# --- Logs ---
+*.log
+logs/
+
+# --- Temp / cache ---
+*.tmp
+*.temp
+.cache/
+
+# --- Screenshots/demo working files (raw, unedited) ---
+/raw-screenshots/
