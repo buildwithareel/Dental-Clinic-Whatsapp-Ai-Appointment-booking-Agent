@@ -1,0 +1,613 @@
+{
+  "name": "Dental Clinic – AI Booking Agent (Webhook + HTTP Request / Cloud Station)",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## 📡 WEBHOOK + HTTP REQUEST VERSION (Cloud Station API)\nUse this instead of n8n's built-in WhatsApp Trigger/Send nodes when your WhatsApp access comes through a third-party provider (BSP) like Cloud Station rather than directly through Meta's native n8n integration.\n\nTrigger: generic Webhook node — Cloud Station calls this URL when a message arrives.\nSender: generic HTTP Request node — calls Cloud Station's send-message endpoint directly.\n\n⚠️ I don't have Cloud Station's exact payload/endpoint spec, so the field paths and request body below follow the common WhatsApp Cloud API shape (most BSPs mirror it closely). Check Cloud Station's docs and adjust the marked fields if their format differs — everything else (Agent, tools, error handling) doesn't need to change either way.",
+        "height": 280,
+        "width": 400
+      },
+      "id": "sticky-overview",
+      "name": "Overview",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [-760, -160]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "dental-clinic-cloudstation",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Incoming Message (Cloud Station Webhook)",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [-320, 260],
+      "webhookId": "dental-clinic-cloudstation",
+      "retryOnFail": false
+    },
+    {
+      "parameters": {
+        "content": "### 🔧 Cloud Station setup\nCopy this node's Production URL and paste it into Cloud Station's dashboard as the inbound webhook/callback URL for your WhatsApp number. Also configure any verification token Cloud Station requires (some providers send a GET request first to verify the URL — if so, you may need a second Webhook node set to GET with 'Respond Immediately' to echo back their challenge param; check their docs).",
+        "height": 160,
+        "width": 300
+      },
+      "id": "sticky-cloudstation-setup",
+      "name": "Note - Cloud Station Setup",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [-320, 60]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "loose" },
+          "conditions": [
+            {
+              "id": "is-text",
+              "leftValue": "={{ $json.body.entry?.[0]?.changes?.[0]?.value?.messages?.[0]?.type || $json.body.type }}",
+              "rightValue": "text",
+              "operator": { "type": "string", "operation": "equals" }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-is-text-message",
+      "name": "Is Text Message?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [-80, 260]
+    },
+    {
+      "parameters": { "respondWith": "json", "responseBody": "={{ { \"status\": \"ignored\" } }}", "options": {} },
+      "id": "respond-ignored",
+      "name": "Respond 200 (Ignored)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [140, 420]
+    },
+    {
+      "parameters": {
+        "mode": "manual",
+        "duplicateItem": false,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a1",
+              "name": "sessionId",
+              "type": "string",
+              "value": "={{ $json.body.entry?.[0]?.changes?.[0]?.value?.messages?.[0]?.from || $json.body.from }}"
+            },
+            {
+              "id": "a2",
+              "name": "customerName",
+              "type": "string",
+              "value": "={{ $json.body.entry?.[0]?.changes?.[0]?.value?.contacts?.[0]?.profile?.name || $json.body.name || 'Unknown' }}"
+            },
+            {
+              "id": "a3",
+              "name": "message",
+              "type": "string",
+              "value": "={{ $json.body.entry?.[0]?.changes?.[0]?.value?.messages?.[0]?.text?.body || $json.body.text || $json.body.message }}"
+            },
+            {
+              "id": "a4",
+              "name": "channel",
+              "type": "string",
+              "value": "whatsapp-cloudstation"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "normalize-input",
+      "name": "Normalize Input",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [140, 200],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "content": "### ⚙️ Adjust to Cloud Station's real payload\nThese paths assume a Meta Cloud API-style body: `entry[0].changes[0].value.messages[0]...`. Send yourself one test WhatsApp message, open this node's input in n8n, and check the ACTUAL field names Cloud Station sends — then fix these 3 expressions (`sessionId`, `customerName`, `message`) and the 'Is Text Message?' condition above to match. This is the one part of the workflow tied to your specific provider.",
+        "height": 200,
+        "width": 320
+      },
+      "id": "sticky-normalize",
+      "name": "Note - Normalize (check real payload)",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [140, 400]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.message }}",
+        "options": {
+          "systemMessage": "=You are Sara, the AI booking assistant for {{ $json.clinicName || 'Bright Smile Dental Clinic' }}.\n\nGOAL: Understand what the patient wants, collect any missing details, check real availability, offer real slots, confirm their choice, and book/reschedule/cancel the appointment. Also answer general clinic FAQs from the knowledge base, and always make sure the patient's contact info is saved in the CRM.\n\nRULES:\n1. Always figure out: intent (book / reschedule / cancel / FAQ), preferred date, preferred time-of-day. This clinic currently uses one shared calendar for all appointments, so you do not need to ask which doctor's calendar to use.\n2. If any required detail is missing, ask ONE short clarifying question at a time — never assume.\n3. NEVER invent available time slots. Always call the 'Check Availability' tool first and only offer slots it returns.\n4. Only call 'Book Appointment' after the patient has explicitly confirmed a specific date and time.\n5. For reschedule/cancel requests, first confirm which existing appointment they mean before calling the tool.\n6. Always call 'Save Lead to CRM' early in the conversation so no patient is lost, even if they don't complete a booking.\n7. If a tool returns an error or no availability, apologize briefly, do not panic, and offer the next best alternative (a different day/doctor) or offer to have a human staff member follow up.\n8. Keep replies short, warm, and professional — this is WhatsApp, not an email. Use the patient's name once you know it.\n9. Always end a successful booking with a clear confirmation: doctor, date, time, and a note that a reminder will be sent.\n10. Never make up clinic policies, prices, or insurance info — use the 'Search Knowledge Base' tool for that; if it has no answer, say a staff member will confirm."
+        },
+        "maxIterations": 8
+      },
+      "id": "ai-agent",
+      "name": "Dental Booking Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.9,
+      "position": [380, 200],
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 2000,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-1.5-pro",
+        "options": { "temperature": 0.3 }
+      },
+      "id": "gemini-model",
+      "name": "Gemini Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [240, 460],
+      "credentials": {
+        "googlePalmApi": { "id": "PLACEHOLDER_GEMINI_CRED", "name": "Google Gemini(PaLM) API" }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdExpression": "={{ $('Normalize Input').item.json.sessionId }}",
+        "contextWindowLength": 12
+      },
+      "id": "agent-memory",
+      "name": "Conversation Memory",
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [380, 460]
+    },
+    {
+      "parameters": {
+        "resource": "event",
+        "operation": "getAll",
+        "calendar": {
+          "__rl": true,
+          "mode": "id",
+          "value": "123f34b6071f7dac3af8885f19e7a59550da2a7fcbc31c4fb268899f497ecbbd@group.calendar.google.com"
+        },
+        "timeMin": "={{ $fromAI('range_start', 'ISO datetime to start searching availability from', 'string') }}",
+        "timeMax": "={{ $fromAI('range_end', 'ISO datetime to stop searching availability at (usually end of the requested day)', 'string') }}",
+        "options": { "singleEvents": true, "orderBy": "startTime" }
+      },
+      "id": "tool-check-availability",
+      "name": "Tool: Check Availability",
+      "type": "n8n-nodes-base.googleCalendarTool",
+      "typeVersion": 1.3,
+      "position": [580, 600],
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 1500,
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "googleCalendarOAuth2Api": { "id": "PLACEHOLDER_GCAL_CRED", "name": "Google Calendar account" }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "event",
+        "operation": "create",
+        "calendar": {
+          "__rl": true,
+          "mode": "id",
+          "value": "123f34b6071f7dac3af8885f19e7a59550da2a7fcbc31c4fb268899f497ecbbd@group.calendar.google.com"
+        },
+        "start": "={{ $fromAI('start_datetime', 'Confirmed appointment start time, ISO 8601', 'string') }}",
+        "end": "={{ $fromAI('end_datetime', 'Confirmed appointment end time, ISO 8601, usually 30 min after start', 'string') }}",
+        "additionalFields": {
+          "summary": "={{ $fromAI('event_title', 'Short title, e.g. Dental Checkup - Areel', 'string') }}",
+          "description": "={{ $fromAI('event_notes', 'Reason for visit / notes from the patient', 'string') }}",
+          "attendees": "={{ $fromAI('patient_email', 'Patient email if provided, else leave blank', 'string') }}"
+        }
+      },
+      "id": "tool-book-appointment",
+      "name": "Tool: Book Appointment",
+      "type": "n8n-nodes-base.googleCalendarTool",
+      "typeVersion": 1.3,
+      "position": [740, 600],
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 1500,
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "googleCalendarOAuth2Api": { "id": "PLACEHOLDER_GCAL_CRED", "name": "Google Calendar account" }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "event",
+        "operation": "update",
+        "calendar": {
+          "__rl": true,
+          "mode": "id",
+          "value": "123f34b6071f7dac3af8885f19e7a59550da2a7fcbc31c4fb268899f497ecbbd@group.calendar.google.com"
+        },
+        "eventId": "={{ $fromAI('event_id', 'The existing Google Calendar event ID being rescheduled (looked up from the CRM appointment record)', 'string') }}",
+        "updateFields": {
+          "start": "={{ $fromAI('new_start_datetime', 'New confirmed start time, ISO 8601', 'string') }}",
+          "end": "={{ $fromAI('new_end_datetime', 'New confirmed end time, ISO 8601', 'string') }}"
+        }
+      },
+      "id": "tool-reschedule-appointment",
+      "name": "Tool: Reschedule Appointment",
+      "type": "n8n-nodes-base.googleCalendarTool",
+      "typeVersion": 1.3,
+      "position": [900, 600],
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 1500,
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "googleCalendarOAuth2Api": { "id": "PLACEHOLDER_GCAL_CRED", "name": "Google Calendar account" }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "event",
+        "operation": "delete",
+        "calendar": {
+          "__rl": true,
+          "mode": "id",
+          "value": "123f34b6071f7dac3af8885f19e7a59550da2a7fcbc31c4fb268899f497ecbbd@group.calendar.google.com"
+        },
+        "eventId": "={{ $fromAI('event_id', 'The Google Calendar event ID to cancel, looked up from the CRM appointment record', 'string') }}"
+      },
+      "id": "tool-cancel-appointment",
+      "name": "Tool: Cancel Appointment",
+      "type": "n8n-nodes-base.googleCalendarTool",
+      "typeVersion": 1.3,
+      "position": [1060, 600],
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 1500,
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "googleCalendarOAuth2Api": { "id": "PLACEHOLDER_GCAL_CRED", "name": "Google Calendar account" }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "upsert",
+        "base": { "__rl": true, "mode": "list", "value": "PLACEHOLDER_AIRTABLE_BASE" },
+        "table": { "__rl": true, "mode": "list", "value": "Leads" },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "matchingColumns": ["Phone"],
+          "value": {
+            "Phone": "={{ $fromAI('phone', 'Patient WhatsApp phone number, used as unique key', 'string') }}",
+            "Name": "={{ $fromAI('name', 'Patient full name', 'string') }}",
+            "Last Message": "={{ $fromAI('last_message', 'Most recent message from the patient, for staff context', 'string') }}",
+            "Status": "={{ $fromAI('status', 'One of: New, In Conversation, Booked, No Show, Follow Up Needed', 'string') }}"
+          }
+        },
+        "options": {}
+      },
+      "id": "tool-save-lead",
+      "name": "Tool: Save Lead to CRM",
+      "type": "n8n-nodes-base.airtableTool",
+      "typeVersion": 2.1,
+      "position": [1220, 600],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "airtableTokenApi": { "id": "PLACEHOLDER_AIRTABLE_CRED", "name": "Airtable Personal Access Token" }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "upsert",
+        "base": { "__rl": true, "mode": "list", "value": "PLACEHOLDER_AIRTABLE_BASE" },
+        "table": { "__rl": true, "mode": "list", "value": "Appointments" },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "matchingColumns": ["Google Event ID"],
+          "value": {
+            "Google Event ID": "={{ $fromAI('event_id', 'Google Calendar event ID returned by the booking/reschedule tool', 'string') }}",
+            "Phone": "={{ $fromAI('phone', 'Patient phone number, links to the Leads table', 'string') }}",
+            "Doctor": "={{ $fromAI('doctor', 'Doctor name', 'string') }}",
+            "Appointment Time": "={{ $fromAI('appointment_time', 'Confirmed appointment start time, ISO 8601', 'string') }}",
+            "Status": "={{ $fromAI('status', 'One of: Confirmed, Rescheduled, Cancelled', 'string') }}",
+            "Reminder Sent": "={{ false }}"
+          }
+        },
+        "options": {}
+      },
+      "id": "tool-log-appointment",
+      "name": "Tool: Log Appointment in CRM",
+      "type": "n8n-nodes-base.airtableTool",
+      "typeVersion": 2.1,
+      "position": [1380, 600],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "airtableTokenApi": { "id": "PLACEHOLDER_AIRTABLE_CRED", "name": "Airtable Personal Access Token" }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "retrieve-as-tool",
+        "toolName": "search_clinic_knowledge_base",
+        "toolDescription": "Answers general questions about the clinic: opening hours, location, services offered, pricing, insurance accepted, doctor specialties, and policies. Use this instead of guessing.",
+        "pineconeIndex": { "__rl": true, "mode": "list", "value": "PLACEHOLDER_PINECONE_INDEX" },
+        "topK": 4,
+        "options": {}
+      },
+      "id": "tool-knowledge-base",
+      "name": "Tool: Search Knowledge Base",
+      "type": "@n8n/n8n-nodes-langchain.vectorStorePinecone",
+      "typeVersion": 1.1,
+      "position": [1540, 600],
+      "credentials": {
+        "pineconeApi": { "id": "PLACEHOLDER_PINECONE_CRED", "name": "Pinecone account" }
+      }
+    },
+    {
+      "parameters": { "options": {} },
+      "id": "kb-embeddings",
+      "name": "Embeddings for KB",
+      "type": "@n8n/n8n-nodes-langchain.embeddingsOpenAi",
+      "typeVersion": 1.2,
+      "position": [1540, 760],
+      "credentials": {
+        "openAiApi": { "id": "PLACEHOLDER_OPENAI_CRED", "name": "OpenAI account" }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "loose" },
+          "conditions": [
+            {
+              "id": "cond1",
+              "leftValue": "={{ $json.output }}",
+              "rightValue": "",
+              "operator": { "type": "string", "operation": "notEmpty" }
+            },
+            {
+              "id": "cond2",
+              "leftValue": "={{ $json.error }}",
+              "rightValue": "",
+              "operator": { "type": "string", "operation": "empty" }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-agent-success",
+      "name": "Agent Succeeded?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [620, 200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $vars.CLOUDSTATION_API_URL }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "=Bearer {{ $vars.CLOUDSTATION_API_TOKEN }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { \"to\": $('Normalize Input').item.json.sessionId, \"type\": \"text\", \"text\": { \"body\": $json.output } } }}",
+        "options": {}
+      },
+      "id": "send-whatsapp-reply",
+      "name": "Send Reply (Cloud Station HTTP Request)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [860, 80],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": { "respondWith": "json", "responseBody": "={{ { \"status\": \"ok\" } }}", "options": {} },
+      "id": "respond-ok",
+      "name": "Respond 200 OK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1100, 80]
+    },
+    {
+      "parameters": {
+        "mode": "manual",
+        "assignments": {
+          "assignments": [
+            {
+              "id": "f1",
+              "name": "output",
+              "type": "string",
+              "value": "Sorry, I'm having a little trouble right now. A member of our clinic staff will follow up with you shortly to help with your appointment. 🙏"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "prepare-fallback",
+      "name": "Prepare Fallback Message",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [860, 260]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $vars.CLOUDSTATION_API_URL }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "=Bearer {{ $vars.CLOUDSTATION_API_TOKEN }}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { \"to\": $('Normalize Input').item.json.sessionId, \"type\": \"text\", \"text\": { \"body\": $json.output } } }}",
+        "options": {}
+      },
+      "id": "send-fallback-reply",
+      "name": "Send Fallback Reply (Cloud Station HTTP Request)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1100, 260],
+      "retryOnFail": true,
+      "maxTries": 2,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "base": { "__rl": true, "mode": "list", "value": "PLACEHOLDER_AIRTABLE_BASE" },
+        "table": { "__rl": true, "mode": "list", "value": "Errors" },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Phone": "={{ $('Normalize Input').item.json.sessionId }}",
+            "Message": "={{ $('Normalize Input').item.json.message }}",
+            "Error": "={{ $('Dental Booking Agent').item.json.error || 'Unknown agent error' }}",
+            "Timestamp": "={{ $now.toISO() }}"
+          }
+        },
+        "options": {}
+      },
+      "id": "log-error-airtable",
+      "name": "Log Error to CRM",
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.1,
+      "position": [1100, 400],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "airtableTokenApi": { "id": "PLACEHOLDER_AIRTABLE_CRED", "name": "Airtable Personal Access Token" }
+      }
+    },
+    {
+      "parameters": { "respondWith": "json", "responseBody": "={{ { \"status\": \"handled_error\" } }}", "options": {} },
+      "id": "respond-error",
+      "name": "Respond 200 (Handled Error)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1340, 260]
+    },
+    {
+      "parameters": {
+        "content": "### 🚨 Error handling layers\n1. Every tool node: retryOnFail + `continueRegularOutput` — the agent sees tool errors and can respond sensibly instead of the run dying.\n2. 'Agent Succeeded?' catches a fully failed/empty agent run.\n3. On failure: fallback message sent via HTTP Request immediately, error logged to Airtable's Errors table, and the webhook still returns 200 so Cloud Station doesn't endlessly retry.\n4. Set `3_Global_Error_Workflow` as this workflow's Settings → Error Workflow to also alert staff by email for anything that slips through.\n5. `$vars.CLOUDSTATION_API_URL` and `$vars.CLOUDSTATION_API_TOKEN` are n8n environment variables — set these under Settings → Variables so the send-message endpoint/token aren't hardcoded in the workflow.",
+        "height": 240,
+        "width": 360
+      },
+      "id": "sticky-error",
+      "name": "Note - Error Handling",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [1100, 480]
+    },
+    {
+      "parameters": {
+        "content": "### ✅ Before going live, verify against Cloud Station's docs\n- Exact send-message endpoint URL and required body shape (some providers use `{\"phone\": ..., \"message\": ...}` instead of the Cloud API `{\"to\": ..., \"text\": {\"body\": ...}}` shape used here).\n- Auth method — Bearer token assumed here; some providers use an API key header or query param instead.\n- Whether they require a GET verification handshake on the webhook URL before sending real traffic.",
+        "height": 200,
+        "width": 340
+      },
+      "id": "sticky-verify",
+      "name": "Note - Verify Cloud Station Specifics",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [-320, 500]
+    }
+  ],
+  "connections": {
+    "Incoming Message (Cloud Station Webhook)": {
+      "main": [[{ "node": "Is Text Message?", "type": "main", "index": 0 }]]
+    },
+    "Is Text Message?": {
+      "main": [
+        [{ "node": "Normalize Input", "type": "main", "index": 0 }],
+        [{ "node": "Respond 200 (Ignored)", "type": "main", "index": 0 }]
+      ]
+    },
+    "Normalize Input": {
+      "main": [[{ "node": "Dental Booking Agent", "type": "main", "index": 0 }]]
+    },
+    "Gemini Chat Model": {
+      "ai_languageModel": [[{ "node": "Dental Booking Agent", "type": "ai_languageModel", "index": 0 }]]
+    },
+    "Conversation Memory": {
+      "ai_memory": [[{ "node": "Dental Booking Agent", "type": "ai_memory", "index": 0 }]]
+    },
+    "Tool: Check Availability": {
+      "ai_tool": [[{ "node": "Dental Booking Agent", "type": "ai_tool", "index": 0 }]]
+    },
+    "Tool: Book Appointment": {
+      "ai_tool": [[{ "node": "Dental Booking Agent", "type": "ai_tool", "index": 0 }]]
+    },
+    "Tool: Reschedule Appointment": {
+      "ai_tool": [[{ "node": "Dental Booking Agent", "type": "ai_tool", "index": 0 }]]
+    },
+    "Tool: Cancel Appointment": {
+      "ai_tool": [[{ "node": "Dental Booking Agent", "type": "ai_tool", "index": 0 }]]
+    },
+    "Tool: Save Lead to CRM": {
+      "ai_tool": [[{ "node": "Dental Booking Agent", "type": "ai_tool", "index": 0 }]]
+    },
+    "Tool: Log Appointment in CRM": {
+      "ai_tool": [[{ "node": "Dental Booking Agent", "type": "ai_tool", "index": 0 }]]
+    },
+    "Tool: Search Knowledge Base": {
+      "ai_tool": [[{ "node": "Dental Booking Agent", "type": "ai_tool", "index": 0 }]]
+    },
+    "Embeddings for KB": {
+      "ai_embedding": [[{ "node": "Tool: Search Knowledge Base", "type": "ai_embedding", "index": 0 }]]
+    },
+    "Dental Booking Agent": {
+      "main": [[{ "node": "Agent Succeeded?", "type": "main", "index": 0 }]]
+    },
+    "Agent Succeeded?": {
+      "main": [
+        [{ "node": "Send Reply (Cloud Station HTTP Request)", "type": "main", "index": 0 }],
+        [{ "node": "Prepare Fallback Message", "type": "main", "index": 0 }]
+      ]
+    },
+    "Send Reply (Cloud Station HTTP Request)": {
+      "main": [[{ "node": "Respond 200 OK", "type": "main", "index": 0 }]]
+    },
+    "Prepare Fallback Message": {
+      "main": [
+        [
+          { "node": "Send Fallback Reply (Cloud Station HTTP Request)", "type": "main", "index": 0 },
+          { "node": "Log Error to CRM", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Send Fallback Reply (Cloud Station HTTP Request)": {
+      "main": [[{ "node": "Respond 200 (Handled Error)", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "errorWorkflow": "PLACEHOLDER_ERROR_WORKFLOW_ID"
+  },
+  "pinData": {},
+  "versionId": "1"
+}
