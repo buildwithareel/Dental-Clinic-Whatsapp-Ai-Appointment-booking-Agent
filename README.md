@@ -192,7 +192,7 @@ Patient WhatsApp Message
 
 ---
 
-## 🛡️ Error Handling Design
+## 🛡️ Error Handling Design :
 
 This workflow is built with multiple layers of resilience so patients are never left hanging and failures are never silent:
 
@@ -205,7 +205,7 @@ This workflow is built with multiple layers of resilience so patients are never 
 
 ---
 
-## ✅ Prerequisites & Setup
+## ✅ Prerequisites & Setup :
 
 ### 1. WhatsApp via a BSP (Cloud Station or similar)
 - An active WhatsApp Business number connected through a third-party BSP such as **Cloud Station** (or any provider offering a webhook + REST send-message API).
