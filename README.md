@@ -21,7 +21,7 @@ Patients message the clinic's WhatsApp number, and an AI agent handles the entir
 
 This repository contains a production-ready **n8n workflow** that turns a clinic's WhatsApp number into a fully autonomous booking assistant.
 
-Rather than connecting through n8n's native WhatsApp/Meta integration, this build talks to WhatsApp through **Cloud Station**, a third-party BSP (Business Solution Provider) — using a generic **Webhook** node to receive messages and a generic **HTTP Request** node to send replies. This pattern works with any BSP that exposes a webhook + REST send-message API, not just Meta's native integration.
+Rather than connecting through n8n's native WhatsApp/Meta integration, this build talks to WhatsApp through **Cloud Station**, a third-party BSP (Business Solution Provider) — using a generic **Webhook** node to receive messages and a generic **HTTP Request** node to send replies. This Pattern works with any BSP that exposes a webhook + REST send-message API, not just Meta's native integration.
 
 At the center of the workflow sits a single **LangChain AI Agent** ("Sara") that owns the entire booking conversation — asking clarifying questions one at a time, checking real calendar slots before ever offering a time, confirming before booking, and falling back safely if a tool call fails.
 
