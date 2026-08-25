@@ -177,7 +177,7 @@ Patient WhatsApp Message
 | **Tool: Search Knowledge Base** | `@n8n/n8n-nodes-langchain.vectorStorePinecone` (retrieve-as-tool) | Exposed to the agent as `search_clinic_knowledge_base` — answers general questions (hours, location, pricing, insurance, doctor specialties, policies) grounded in the clinic's real knowledge base. |
 | **Embeddings Google Gemini** | `@n8n/n8n-nodes-langchain.embeddingsGoogleGemini` | Generates the vector embeddings used for Pinecone semantic search. |
 
-### Response & Error Recovery
+### Response & Error Recovery :
 
 | Node | Type | Purpose |
 |---|---|---|
