@@ -211,10 +211,10 @@ This workflow is built with multiple layers of resilience so patients are never 
 - An active WhatsApp Business number connected through a third-party BSP such as **Cloud Station** (or any provider offering a webhook + REST send-message API).
 - The BSP's inbound webhook/callback URL configured to point at this workflow's **Incoming Message** node.
 
-### 2. n8n Instance
+### 2. n8n Instance :
 - An **n8n Cloud** workspace or **self-hosted** instance with LangChain community nodes enabled.
 
-### 3. Required Accounts & API Keys
+### 3. C :
 - OpenAI API key (Chat Model)
 - Google Gemini API key (Embeddings)
 - Pinecone account + populated vector index for the clinic's FAQ knowledge base
