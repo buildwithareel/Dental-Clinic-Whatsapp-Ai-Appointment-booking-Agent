@@ -301,7 +301,7 @@ _
 
 ---
 
-## 🔮 Future Improvements
+## 🔮 Future Improvements :
 
 - 🗓️ **Multi-doctor calendar support** — extend beyond the current single shared calendar to route bookings to individual doctor calendars.
 - 🌍 **Multi-language support** — detect the patient's language and respond accordingly instead of a single fixed language.
