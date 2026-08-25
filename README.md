@@ -150,7 +150,7 @@ Patient WhatsApp Message
 
 ---
 
-## 🧩 Node-by-Node Breakdown
+## 🧩 Node-by-Node Breakdown :
 
 ### Intake & Validation
 
@@ -161,7 +161,7 @@ Patient WhatsApp Message
 | **Respond 200 (Ignored)** | `n8n-nodes-base.respondToWebhook` | Returns a `200 OK` for filtered-out events so Cloud Station doesn't treat them as failed deliveries. |
 | **Normalize Input** | `n8n-nodes-base.set` | Extracts a consistent `sessionId`, `customerName`, and `message` from Cloud Station's payload shape, decoupling the rest of the workflow from provider-specific field names. |
 
-### AI Booking Agent
+### AI Booking Agent :
 
 | Node | Type | Purpose |
 |---|---|---|
