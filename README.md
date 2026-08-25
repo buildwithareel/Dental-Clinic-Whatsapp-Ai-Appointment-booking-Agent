@@ -27,7 +27,7 @@ At the center of the workflow sits a single **LangChain AI Agent** ("Sara") that
 
 ---
 
-## ✨ Features
+## ✨ Features :
 
 - 📅 **Real-time calendar booking** — checks live Google Calendar availability before offering any time slot; never invents open slots.
 - 🔁 **Full appointment lifecycle** — book, reschedule, and cancel, all handled by the same conversational agent.
