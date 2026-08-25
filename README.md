@@ -313,18 +313,13 @@ _
 
 ---
 
-## 🛠️ Error Handling
 
-> _To be added manually._
-
----
-
-## 📄 License
+## 📄 License :
 
 This project is licensed under the [MIT License](LICENSE).
 
 ---
 
-## 🙋‍♂️ Author
+## 🙋‍♂️ Author :
 
 Built and maintained by **[@buildwithareel](https://github.com/buildwithareel)** — exploring AI automation, agentic workflows, and n8n-based systems.  
