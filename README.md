@@ -214,7 +214,7 @@ This workflow is built with multiple layers of resilience so patients are never 
 ### 2. n8n Instance :
 - An **n8n Cloud** workspace or **self-hosted** instance with LangChain community nodes enabled.
 
-### 3. C :
+### 3. Required Api Keys :
 - OpenAI API key (Chat Model)
 - Google Gemini API key (Embeddings)
 - Pinecone account + populated vector index for the clinic's FAQ knowledge base
@@ -244,7 +244,7 @@ This workflow is built with multiple layers of resilience so patients are never 
 
 ---
 
-## 🚀 How to Import & Run
+## 🚀 How to Import & Run :
 
 1. **Clone this repository**
    ```bash
