@@ -40,7 +40,7 @@ At the center of the workflow sits a single **LangChain AI Agent** ("Sara") that
 
 ---
 
-## 🗺️ Workflow Architecture
+## 🗺️ Workflow Architecture :
 
 ```mermaid
 flowchart TB
