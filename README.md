@@ -289,9 +289,15 @@ This workflow is built with multiple layers of resilience so patients are never 
 
 ---
 
-## 📸 Screenshots & Demo
+## 📸 Screenshots:
+### Workflow 
+![workflow](screenshots/Workflow.png)
+### Airtable leads load
+![Airtab;e](<screenshots/Airtable leads.png>)
+### Success proof
+![prrof](<screenshots/Succeeded workflow proof.png>)
 
-> _Screenshots and a demo walkthrough will be added here._
+_
 
 ---
 
